@@ -1,0 +1,19 @@
+{
+  "name": "api_address",
+  "version": "1.0.0",
+  "description": "API Rest para ubicar coordenadas de direcciones",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dsalazar93/api_address.git"
+  },
+  "author": "dsalazar93",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dsalazar93/api_address/issues"
+  },
+  "homepage": "https://github.com/dsalazar93/api_address#readme"
+}
