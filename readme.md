@@ -40,7 +40,7 @@ npm run dev
 {
 	"address": ""
 }
-
+```
 - /api/token recibe un objeto JSON . Se encarga de refrescar el token jwt de acceso.
 ```json
 {
