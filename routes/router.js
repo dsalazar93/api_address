@@ -8,6 +8,8 @@ const db = require('../lib/db.js')
 
 const userMiddleware = require('../middlewares/users.js')
 
+const services = require('../services/geoCoding.js')
+
 router.post('/sign-up', userMiddleware.validateRegister, (req, res, next) => {
   db.query(
     `SELECT * FROM users WHERE username = LOWER(${db.escape(req.body.username)})`,
@@ -69,9 +71,45 @@ router.post('/login', (req, res, next) => {
   )
 })
 
-router.get('/get_coordinates', userMiddleware.isLoggedIn, (req, res, next) => {
-  // console.log(req.userData)
-  res.send('This is the secret content. Only logged in users can see that!')
+router.get('/get_coordinates/', userMiddleware.isLoggedIn, (req, res, next) => {
+  const address = req.body.address.trim().length > 0 ? encodeURIComponent(req.body.address) : null
+  if(address){
+    // Servicio Geocoding de Google
+    services.google(address).then((response) => {
+      if(response.data.status == "OK"){
+        let ubications = response.data.results.map((result) => {
+          let location = {
+            address: result.formatted_address,
+            coordinates: result.geometry.location
+          }
+  
+          return location
+        })
+        return res.status(200).send(ubications)
+      } else {
+        //Servicio Geocoding HERE
+        services.here(address).then((response) => {
+          if (response.data.items.length > 0){
+            let ubications = response.data.items.map((result) => {
+              let location = {
+                address: result.title,
+                coordinates: result.position
+              }
+
+              return location
+            })
+
+            return res.status(200).send(ubications)
+          } else {
+            return res.status(401).send({msg: 'No se encontraron resultados'})
+          }
+        })
+      }
+    })
+
+  } else {
+    return res.status(401).send({msg: 'Ingresa una dirección'})
+  }
 });
 
 module.exports = router
