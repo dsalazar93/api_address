@@ -10,6 +10,7 @@ const userMiddleware = require('../middlewares/users.js')
 
 const services = require('../services/geoCoding.js')
 
+
 router.post('/sign-up', userMiddleware.validateRegister, (req, res, next) => {
   db.query(
     `SELECT * FROM users WHERE username = LOWER(${db.escape(req.body.username)})`,
@@ -17,7 +18,7 @@ router.post('/sign-up', userMiddleware.validateRegister, (req, res, next) => {
       if (result.length) {
         return res.status(409).send({msg: 'El nombre de usuario ingresado ya esta en uso, intenta con otro'})
       } else {
-        // username is available
+        // Usuario disponible
         bcrypt.hash(req.body.password, 10, (err, hash) => {
           if (err) {
             return res.status(500).send({msg: err})
@@ -43,7 +44,7 @@ router.post('/sign-up', userMiddleware.validateRegister, (req, res, next) => {
 router.post('/login', (req, res, next) => {
   db.query(`SELECT * FROM users WHERE username = ${db.escape(req.body.username)};`,
     (err, result) => {
-      // user does not exists
+      // Usuario no existe
       if (err) {
         throw err
         return res.status(400).send({msg: err})
@@ -51,18 +52,26 @@ router.post('/login', (req, res, next) => {
       if (!result.length) {
         return res.status(401).send({msg: 'El usuario no existe'})
       }
-      // check password
+      // Verificar contraseña
       bcrypt.compare(req.body.password, result[0]['password'],
         (bErr, bResult) => {
-          // wrong password
+          // Contraseña incorrecta
           if (bErr) {
             throw bErr
             return res.status(401).send({msg: 'Nombre de usuario con contraseña incorrectos'})
           }
           if (bResult) {
-            const token = jwt.sign({username: result[0].username, userId: result[0].id}, process.env.SECRET_KET, {expiresIn: '7d'}) 
+            const token = jwt.sign({username: result[0].username, userId: result[0].id}, process.env.SECRET_KET, {expiresIn: '5m'})
+            const refreshToken = jwt.sign({username: result[0].username, userId: result[0].id}, process.env.SECRET_KET_REFRESH, {expiresIn: '24h'}) 
             db.query(`UPDATE users SET last_login = now() WHERE id = '${result[0].id}'`)
-            return res.status(200).send({msg: 'Usuario autenticado con éxito', token})
+
+            let objMsg = {
+              msg: 'Usuario autenticado con éxito',
+              accessToken:token,
+              refreshToken:refreshToken
+            }
+
+            return res.status(200).send(objMsg)
           }
           return res.status(401).send({msg: 'Nombre de usuario o contraseña incorrectos'})
         }
@@ -110,6 +119,23 @@ router.get('/get_coordinates/', userMiddleware.isLoggedIn, (req, res, next) => {
   } else {
     return res.status(401).send({msg: 'Ingresa una dirección'})
   }
-});
+})
+
+router.post('/token', userMiddleware.refreshToken, (req,res) => {
+  if(req.userData) {
+    const token = jwt.sign({username: req.userData.username, userId: req.userData.userId}, process.env.SECRET_KEY, {expiresIn: '5m'})
+    db.query(`UPDATE users SET last_login = now() WHERE id = '${req.userData.userId}'`)
+
+    let objMsg = {
+      msg: 'Token de acceso refrescado con éxito',
+      accessToken:token,
+      refreshToken:req.body.refreshToken
+    }
+
+    return res.status(200).send(objMsg)      
+  } else {
+    res.status(404).send('No hay token de refresco')
+  }
+})
 
 module.exports = router
